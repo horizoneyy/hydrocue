@@ -2,122 +2,185 @@ import { Platform } from 'react-native';
 import type * as NotificationsType from 'expo-notifications';
 import { useHydrationStore } from '../store/useHydrationStore';
 
-// Singleton: load sekali, gagal diam-diam (untuk Expo Go compatibility)
+// ─── Singleton: load sekali, gagal diam-diam (Expo Go compatibility) ─────────
 let Notifications: typeof NotificationsType | null = null;
 
 if (Platform.OS !== 'web') {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Notifications = require('expo-notifications');
     if (Notifications) {
+      // PERBAIKAN: shouldShowBanner + shouldPlaySound + priority MAX agar
+      // notifikasi muncul di lockscreen & saat layar mati
       Notifications.setNotificationHandler({
         handleNotification: async () => ({
           shouldShowAlert: true,
           shouldShowBanner: true,
           shouldShowList: true,
           shouldPlaySound: true,
-          shouldSetBadge: false,
+          shouldSetBadge: true,
+          priority: Notifications!.AndroidNotificationPriority?.MAX ?? 'max',
         }),
       });
     }
   } catch {
-    // [PRUNING: Dihapus console.log - tidak perlu di production build]
+    // silent fail untuk Expo Go
   }
 }
 
-// Konfigurasi channel Android dengan priority/suara/getar sesuai preferensi user
-async function setupNotificationChannel(highPriority: boolean, sound: boolean, vibrate: boolean) {
+// ─── Setup Android Notification Channel ──────────────────────────────────────
+// Channel harus HIGH atau MAX agar notifikasi muncul di lockscreen
+async function setupNotificationChannel(
+  highPriority: boolean,
+  sound: boolean,
+  vibrate: boolean,
+) {
   if (Platform.OS !== 'android' || !Notifications) return;
   try {
-    await Notifications.setNotificationChannelAsync('default', {
+    await Notifications.setNotificationChannelAsync('hydrocue_reminders', {
       name: 'Hydration Reminders',
+      description: 'Pengingat minum air dari HydroCue',
       importance: highPriority
-        ? Notifications.AndroidImportance.MAX
-        : Notifications.AndroidImportance.DEFAULT,
-      vibrationPattern: vibrate ? [0, 250, 250, 250] : undefined,
+        ? Notifications.AndroidImportance.MAX   // muncul di lockscreen & heads-up
+        : Notifications.AndroidImportance.HIGH, // HIGH tetap muncul di lockscreen
+      enableVibrate: vibrate,
+      vibrationPattern: vibrate ? [0, 300, 200, 300] : undefined,
+      enableLights: true,
       lightColor: '#0284c7',
       sound: sound ? 'default' : undefined,
+      showBadge: true,
+      // bypassDnd → hanya aktif jika high priority dipilih user
+      bypassDnd: highPriority,
+      lockscreenVisibility:
+        Notifications.AndroidNotificationVisibility?.PUBLIC ?? 1, // tampil penuh di lockscreen
     });
   } catch {
-    // [PRUNING: Silent fail - tidak block flow utama]
+    // silent fail
   }
 }
 
-export async function scheduleOfflineAlarms(targetMl: number, wakeTimeH: number, sleepTimeH: number) {
-  // [EARLY RETURN: Keluar cepat jika platform tidak support]
+// ─── Request Permissions (Android 13+ wajib minta izin POST_NOTIFICATIONS) ───
+export async function requestNotificationPermissions(): Promise<boolean> {
+  if (Platform.OS === 'web' || !Notifications) return false;
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    if (existingStatus === 'granted') return true;
+
+    const { status } = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+        allowCriticalAlerts: true, // iOS: izin critical alert agar bypass DND
+      },
+    });
+    return status === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+// ─── Jadwalkan Alarm Harian ───────────────────────────────────────────────────
+export async function scheduleOfflineAlarms(
+  targetMl: number,
+  wakeTimeH: number,
+  sleepTimeH: number,
+) {
   if (Platform.OS === 'web' || !Notifications) return;
 
   try {
     const { userProfile } = useHydrationStore.getState();
     const highPriority = userProfile.high_priority_enabled ?? true;
-    const soundEnabled = userProfile.chime_enabled ?? true;
+    const soundEnabled  = userProfile.chime_enabled ?? true;
     const hapticsEnabled = userProfile.haptics_enabled ?? true;
 
-    // Setup channel DULU sebelum cancel - agar alarm baru langsung pakai setting terbaru
+    // Selalu setup channel SEBELUM cancel agar alarm baru pakai setting terbaru
     await setupNotificationChannel(highPriority, soundEnabled, hapticsEnabled);
     await Notifications.cancelAllScheduledNotificationsAsync();
 
     if (targetMl <= 0) return;
 
-    // [BUG FIX: Handle jadwal melewati tengah malam, misal: tidur jam 02:00]
-    const wakeTotalMins = wakeTimeH * 60;
-    let sleepTotalMins = sleepTimeH * 60;
-    if (sleepTotalMins <= wakeTotalMins) sleepTotalMins += 24 * 60;
+    // Handle jadwal melewati tengah malam
+    const wakeMins  = wakeTimeH * 60;
+    let sleepMins   = sleepTimeH * 60;
+    if (sleepMins <= wakeMins) sleepMins += 24 * 60;
 
-    const activeMins = sleepTotalMins - wakeTotalMins;
+    const activeMins   = sleepMins - wakeMins;
     const drinksNeeded = Math.max(1, Math.ceil(targetMl / 250));
-    const isFixed = userProfile.notif_mode === 'Fixed';
+    const isFixed      = userProfile.notif_mode === 'Fixed';
     const intervalMins = isFixed
       ? (userProfile.manual_interval_min || 75)
       : activeMins / drinksNeeded;
 
-    // [QA TEST MODE: Interval < 15 menit = mode pengujian, pakai TIME_INTERVAL agar langsung aktif]
+    // KONTEN NOTIFIKASI — channelId harus cocok dengan channel yang dibuat di atas
+    const makeContent = (index: number): NotificationsType.NotificationContentInput => ({
+      title: 'Waktunya Minum Air! 💧',
+      body: `Sudah minum ${index * 250} ml — teruskan! Target hari ini ${targetMl.toLocaleString()} ml.`,
+      sound: soundEnabled ? 'default' : undefined,
+      vibrate: hapticsEnabled ? [0, 300, 200, 300] : undefined,
+      // PENTING: channelId harus sama persis dengan yang didaftarkan
+      ...(Platform.OS === 'android' && { channelId: 'hydrocue_reminders' }),
+      // Sticky agar tidak hilang sendiri
+      sticky: false,
+      autoDismiss: false,
+      badge: index,
+      // Android: priority MAX agar heads-up notification & lockscreen
+      ...(Platform.OS === 'android' && {
+        priority: Notifications!.AndroidNotificationPriority?.MAX ?? 'max',
+      }),
+    });
+
+    // MODE TEST: interval < 15 menit → pakai TIME_INTERVAL agar langsung aktif
     if (isFixed && intervalMins < 15) {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '💧 HydroCue Test Mode',
+          title: '💧 HydroCue — Test Mode',
           body: `Alarm berulang setiap ${intervalMins} menit.`,
-          sound: soundEnabled,
-          vibrate: hapticsEnabled ? [0, 250, 250, 250] : undefined,
+          sound: soundEnabled ? 'default' : undefined,
+          vibrate: hapticsEnabled ? [0, 300, 200, 300] : undefined,
+          ...(Platform.OS === 'android' && { channelId: 'hydrocue_reminders' }),
           autoDismiss: false,
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds: Math.max(60, intervalMins * 60), // minimum 60 detik
+          seconds: Math.max(60, intervalMins * 60),
           repeats: true,
         },
       });
       return;
     }
 
-    // [EFISIENSI: Batasi maks 20 alarm untuk mencegah throttling OS]
-    const maxAlarms = Math.min(drinksNeeded, 20);
+    // JADWALKAN hingga 64 alarm (batas iOS) — gunakan DAILY trigger agar repeat setiap hari
+    const maxAlarms = Math.min(drinksNeeded, 64);
+    const scheduledPromises: Promise<string>[] = [];
+
     for (let i = 1; i <= maxAlarms; i++) {
-      const triggerTotalMins = wakeTotalMins + i * intervalMins;
-      if (triggerTotalMins >= sleepTotalMins) break;
+      const triggerMins = wakeMins + i * intervalMins;
+      if (triggerMins >= sleepMins) break;
 
-      const hour = Math.floor(triggerTotalMins / 60) % 24;
-      const minute = Math.round(triggerTotalMins % 60);
+      const hour   = Math.floor(triggerMins / 60) % 24;
+      const minute = Math.round(triggerMins % 60);
 
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Waktunya Minum Air! 💧',
-          body: 'Minum segelas air untuk mencapai target harianmu.',
-          sound: soundEnabled,
-          vibrate: hapticsEnabled ? [0, 250, 250, 250] : undefined,
-          autoDismiss: false,
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-          hour,
-          minute,
-          repeats: true,
-        },
-      });
+      scheduledPromises.push(
+        Notifications.scheduleNotificationAsync({
+          content: makeContent(i),
+          trigger: {
+            // PERBAIKAN: Gunakan DAILY untuk repeat setiap hari yang konsisten
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
+            hour,
+            minute,
+          },
+        }),
+      );
     }
+
+    // Jalankan semua scheduling secara paralel → lebih cepat
+    await Promise.allSettled(scheduledPromises);
+
   } catch {
-    // [PRUNING: Silent fail - app tidak crash meski scheduling gagal]
+    // silent fail — app tidak crash meski scheduling gagal
   }
 }
 
-// Ekspor reference Notifications untuk dipakai settings.tsx (agar tidak double-require)
+// Ekspor reference Notifications untuk dipakai settings.tsx
 export { Notifications };

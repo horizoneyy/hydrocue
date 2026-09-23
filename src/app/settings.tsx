@@ -8,7 +8,7 @@ import Header from '../components/Header';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { calculateNextPing, getActivityMultiplier } from '../utils/calculations';
-import { scheduleOfflineAlarms, Notifications } from '../services/notifications';
+import { scheduleOfflineAlarms, requestNotificationPermissions, Notifications } from '../services/notifications';
 
 /* =====================================================================
  * MODULAR UI COMPONENTS
@@ -16,12 +16,8 @@ import { scheduleOfflineAlarms, Notifications } from '../services/notifications'
 
 const ReminderEngineCard = memo(({
   nextPingLabel,
-  onRequestPermissions,
-  onCancelNotifications,
 }: {
   nextPingLabel: string;
-  onRequestPermissions: () => void;
-  onCancelNotifications: () => void;
 }) => (
   <LinearGradient
     colors={['#F0F9FF', '#F8FAFC']}
@@ -42,7 +38,7 @@ const ReminderEngineCard = memo(({
       HydroCue triggers battery-efficient wakeups. No accounts, background telemetry, or remote servers used.
     </Text>
 
-    <View className="bg-white rounded-[20px] px-4 py-3.5 flex-row justify-between items-center shadow-sm mb-3">
+    <View className="bg-white rounded-[20px] px-4 py-3.5 flex-row justify-between items-center shadow-sm">
       <View className="flex-row items-center">
         <Ionicons name="notifications-outline" size={18} color="#0369A1" style={{ marginRight: 8 }} />
         <Text className="text-slate-600 font-bold text-xs">Next ping expected:</Text>
@@ -53,27 +49,6 @@ const ReminderEngineCard = memo(({
       >
         {nextPingLabel}
       </Text>
-    </View>
-
-    <View className="flex-row gap-3">
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel="Enable notification alerts"
-        onPress={onRequestPermissions}
-        className="flex-1 bg-[#0369A1] rounded-[16px] py-3 items-center flex-row justify-center"
-      >
-        <Ionicons name="notifications" size={16} color="white" style={{ marginRight: 6 }} />
-        <Text className="text-white font-bold text-xs">Enable Alerts</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel="Cancel all scheduled notifications"
-        onPress={onCancelNotifications}
-        className="flex-1 bg-[#F1F5F9] rounded-[16px] py-3 items-center flex-row justify-center"
-      >
-        <Ionicons name="close-circle-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
-        <Text className="text-slate-600 font-bold text-xs">Cancel All</Text>
-      </TouchableOpacity>
     </View>
   </LinearGradient>
 ));
@@ -423,12 +398,16 @@ export default function Settings() {
         'Notifications are not available in Expo Go (SDK 53+). Please install the APK build.'
       );
     }
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status === 'granted') {
-      Alert.alert('Izin Diberikan ✅', 'HydroCue sekarang dapat mengirim pengingat minum air! 💧');
+    // Gunakan helper baru yang handle Android 13+ (POST_NOTIFICATIONS) & iOS critical alerts
+    const granted = await requestNotificationPermissions();
+    if (granted) {
       await scheduleAlarms();
+      Alert.alert('Izin Diberikan', 'HydroCue sekarang dapat mengirim pengingat minum air!');
     } else {
-      Alert.alert('Izin Ditolak', 'Aktifkan notifikasi di pengaturan perangkat Anda.');
+      Alert.alert(
+        'Izin Ditolak',
+        'Aktifkan notifikasi di Pengaturan > Aplikasi > HydroCue > Notifikasi.'
+      );
     }
   }, [scheduleAlarms]);
 
@@ -446,7 +425,7 @@ export default function Settings() {
           if (!Notifications) return;
           try {
             await Notifications.cancelAllScheduledNotificationsAsync();
-            Alert.alert('✅ Berhasil', 'Semua jadwal hydration reminder telah dibatalkan.');
+            Alert.alert('Berhasil', 'Semua jadwal hydration reminder telah dibatalkan.');
           } catch {
             Alert.alert('Gagal', 'Tidak dapat membatalkan notifikasi. Pastikan izin sudah diberikan.');
           }
@@ -458,17 +437,18 @@ export default function Settings() {
   // [FIX: Chime & Haptics toggle TIDAK lagi memanggil scheduleAlarms() — ini hanya preferensi suara/getar,
   //  bukan perubahan jadwal alarm. Reschedule hanya dibutuhkan saat mode/interval berubah.
   //  Sebelumnya: 3 toggle berturut-turut = 3x reschedule + 3x DB write dalam milidetik]
+  // Reschedule diperlukan agar channel Android langsung diperbarui dengan sound/vibration baru
   const handleToggleChime = useCallback(async (val: boolean) => {
     setChimeEnabled(val);
     await updateUserProfile({ chime_enabled: val });
-    // Tidak perlu reschedule — channel diperbarui saat alarm berikutnya dijadwalkan
-  }, [updateUserProfile]);
+    await scheduleAlarms();
+  }, [updateUserProfile, scheduleAlarms]);
 
   const handleToggleHaptics = useCallback(async (val: boolean) => {
     setHapticsEnabled(val);
     await updateUserProfile({ haptics_enabled: val });
-    // Tidak perlu reschedule — vibration setting dibaca saat alarm berikutnya dijadwalkan
-  }, [updateUserProfile]);
+    await scheduleAlarms();
+  }, [updateUserProfile, scheduleAlarms]);
 
   // High priority MEMBUTUHKAN reschedule karena mengubah AndroidImportance di notification channel
   const handleTogglePriority = useCallback(async (val: boolean) => {
@@ -491,8 +471,6 @@ export default function Settings() {
       >
         <ReminderEngineCard
           nextPingLabel={nextPingLabel}
-          onRequestPermissions={handleRequestPermissions}
-          onCancelNotifications={handleCancelNotifications}
         />
         <DispatchStrategyPanel
           dispatchMode={dispatchMode}
@@ -502,6 +480,29 @@ export default function Settings() {
           onDispatchChange={handleDispatchChange}
           onFixedIntervalChange={handleFixedIntervalChange}
         />
+
+        {/* Notification Actions */}
+        <View className="gap-3 mb-8">
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Enable notification alerts"
+            onPress={handleRequestPermissions}
+            className="w-full bg-[#0369A1] rounded-[20px] py-4 items-center flex-row justify-center shadow-sm"
+          >
+            <Ionicons name="notifications" size={18} color="white" style={{ marginRight: 8 }} />
+            <Text className="text-white font-black text-[15px]">Enable Alerts</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Cancel all scheduled notifications"
+            onPress={handleCancelNotifications}
+            className="w-full bg-[#F1F5F9] rounded-[20px] py-4 items-center flex-row justify-center border border-[#E2E8F0]"
+          >
+            <Ionicons name="close-circle-outline" size={18} color="#64748B" style={{ marginRight: 8 }} />
+            <Text className="text-slate-600 font-bold text-[14px]">Cancel All</Text>
+          </TouchableOpacity>
+        </View>
+
         <QuietHoursPanel
           userProfile={userProfile}
           chimeEnabled={chimeEnabled}

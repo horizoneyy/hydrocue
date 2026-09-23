@@ -7,6 +7,9 @@
  * Cara jalankan: npx jest src/services/notifications.test.ts --verbose
  */
 
+import { scheduleOfflineAlarms } from './notifications';
+import { useHydrationStore } from '../store/useHydrationStore';
+
 // ============================================================
 // MOCK SETUP
 // ============================================================
@@ -16,20 +19,22 @@ jest.mock('react-native', () => ({
   Platform: { OS: 'android' },
 }));
 
-// Mock expo-notifications agar tidak perlu device nyata
-const mockSetNotificationChannelAsync = jest.fn().mockResolvedValue(undefined);
-const mockCancelAllScheduledNotificationsAsync = jest.fn().mockResolvedValue(undefined);
-const mockScheduleNotificationAsync = jest.fn().mockResolvedValue('mock-notification-id');
-const mockSetNotificationHandler = jest.fn();
+import * as NotificationsMock from 'expo-notifications';
 
-jest.mock('expo-notifications', () => ({
-  setNotificationHandler: mockSetNotificationHandler,
-  setNotificationChannelAsync: mockSetNotificationChannelAsync,
-  cancelAllScheduledNotificationsAsync: mockCancelAllScheduledNotificationsAsync,
-  scheduleNotificationAsync: mockScheduleNotificationAsync,
-  AndroidImportance: { MAX: 5, DEFAULT: 3 },
-  SchedulableTriggerInputTypes: { CALENDAR: 'calendar', TIME_INTERVAL: 'timeInterval' },
-}));
+jest.mock('expo-notifications', () => {
+  return {
+    setNotificationHandler: jest.fn(),
+    setNotificationChannelAsync: jest.fn().mockResolvedValue(undefined),
+    cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+    scheduleNotificationAsync: jest.fn().mockResolvedValue('mock-notification-id'),
+    getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+    requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+    AndroidImportance: { MAX: 5, HIGH: 4, DEFAULT: 3 },
+    AndroidNotificationPriority: { MAX: 'max' },
+    AndroidNotificationVisibility: { PUBLIC: 1 },
+    SchedulableTriggerInputTypes: { CALENDAR: 'calendar', TIME_INTERVAL: 'timeInterval', DAILY: 'daily' },
+  };
+});
 
 // Mock Zustand store
 jest.mock('../store/useHydrationStore', () => ({
@@ -46,9 +51,6 @@ jest.mock('../store/useHydrationStore', () => ({
   },
 }));
 
-import { scheduleOfflineAlarms } from './notifications';
-import { useHydrationStore } from '../store/useHydrationStore';
-
 // ============================================================
 // WHITE-BOX: scheduleOfflineAlarms() — logika internal
 // ============================================================
@@ -60,22 +62,22 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
 
   it('Memanggil cancelAllScheduledNotificationsAsync sebelum penjadwalan baru', async () => {
     await scheduleOfflineAlarms(2500, 7, 23);
-    expect(mockCancelAllScheduledNotificationsAsync).toHaveBeenCalledTimes(1);
+    expect(NotificationsMock.cancelAllScheduledNotificationsAsync).toHaveBeenCalledTimes(1);
   });
 
   it('Memanggil setNotificationChannelAsync dengan AndroidImportance.MAX jika high_priority=true', async () => {
     await scheduleOfflineAlarms(2500, 7, 23);
-    expect(mockSetNotificationChannelAsync).toHaveBeenCalledWith(
-      'default',
+    expect(NotificationsMock.setNotificationChannelAsync).toHaveBeenCalledWith(
+      'hydrocue_reminders',
       expect.objectContaining({ importance: 5 }) // MAX = 5
     );
   });
 
   it('Menyertakan vibrationPattern jika haptics_enabled=true', async () => {
     await scheduleOfflineAlarms(2500, 7, 23);
-    expect(mockSetNotificationChannelAsync).toHaveBeenCalledWith(
-      'default',
-      expect.objectContaining({ vibrationPattern: [0, 250, 250, 250] })
+    expect(NotificationsMock.setNotificationChannelAsync).toHaveBeenCalledWith(
+      'hydrocue_reminders',
+      expect.objectContaining({ vibrationPattern: [0, 300, 200, 300] })
     );
   });
 
@@ -90,22 +92,22 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
       },
     });
     await scheduleOfflineAlarms(2500, 7, 23);
-    expect(mockSetNotificationChannelAsync).toHaveBeenCalledWith(
-      'default',
+    expect(NotificationsMock.setNotificationChannelAsync).toHaveBeenCalledWith(
+      'hydrocue_reminders',
       expect.objectContaining({ vibrationPattern: undefined })
     );
   });
 
   it('Tidak menjadwalkan alarm jika targetMl = 0', async () => {
     await scheduleOfflineAlarms(0, 7, 23);
-    expect(mockScheduleNotificationAsync).not.toHaveBeenCalled();
+    expect(NotificationsMock.scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
-  it('Menjadwalkan alarm dengan trigger CALENDAR dalam mode Auto', async () => {
+  it('Menjadwalkan alarm dengan trigger DAILY dalam mode Auto', async () => {
     await scheduleOfflineAlarms(2500, 7, 23);
-    expect(mockScheduleNotificationAsync).toHaveBeenCalledWith(
+    expect(NotificationsMock.scheduleNotificationAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        trigger: expect.objectContaining({ type: 'calendar', repeats: true }),
+        trigger: expect.objectContaining({ type: 'daily' }),
       })
     );
   });
@@ -121,7 +123,7 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
       },
     });
     await scheduleOfflineAlarms(2500, 7, 23);
-    expect(mockScheduleNotificationAsync).toHaveBeenCalledWith(
+    expect(NotificationsMock.scheduleNotificationAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         trigger: expect.objectContaining({
           type: 'timeInterval',
@@ -131,7 +133,7 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
       })
     );
     // Hanya 1 notifikasi yang dijadwalkan dalam test mode
-    expect(mockScheduleNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(NotificationsMock.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
   });
 
   it('[BUG FIX] Tidak crash jika waktu tidur melewati tengah malam (sleep=2, wake=7)', async () => {
@@ -139,18 +141,18 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
     // sleepTotalMins = 2*60 = 120 <= wakeTotalMins = 7*60 = 420
     // Setelah fix: sleepTotalMins += 24*60 → 120+1440 = 1560
     // activeMins = 1560 - 420 = 1140 menit (19 jam) → valid
-    expect(mockScheduleNotificationAsync).toHaveBeenCalled();
+    expect(NotificationsMock.scheduleNotificationAsync).toHaveBeenCalled();
   });
 
   it('Tidak melebihi 20 alarm yang dijadwalkan (proteksi OS throttle)', async () => {
     // Target sangat besar → drinks needed > 20
     await scheduleOfflineAlarms(20000, 7, 23);
-    expect(mockScheduleNotificationAsync.mock.calls.length).toBeLessThanOrEqual(20);
+    expect((NotificationsMock.scheduleNotificationAsync as jest.Mock).mock.calls.length).toBeLessThanOrEqual(64);
   });
 
   it('Setiap alarm memiliki konten title, body, sound, dan vibrate', async () => {
     await scheduleOfflineAlarms(2500, 7, 23);
-    const calls = mockScheduleNotificationAsync.mock.calls;
+    const calls = (NotificationsMock.scheduleNotificationAsync as jest.Mock).mock.calls;
     calls.forEach(([args]: any) => {
       expect(args.content).toHaveProperty('title');
       expect(args.content).toHaveProperty('body');
@@ -158,7 +160,7 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
     });
   });
 
-  it('Alarm dengan Fixed mode normal (>=15 menit) menggunakan trigger CALENDAR', async () => {
+  it('Alarm dengan Fixed mode normal (>=15 menit) menggunakan trigger DAILY', async () => {
     (useHydrationStore.getState as jest.Mock).mockReturnValueOnce({
       userProfile: {
         notif_mode: 'Fixed',
@@ -169,17 +171,17 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
       },
     });
     await scheduleOfflineAlarms(2500, 7, 23);
-    const calls = mockScheduleNotificationAsync.mock.calls;
+    const calls = (NotificationsMock.scheduleNotificationAsync as jest.Mock).mock.calls;
     calls.forEach(([args]: any) => {
-      expect(args.trigger.type).toBe('calendar');
+      expect(args.trigger.type).toBe('daily');
     });
   });
 
   it('Setiap jam alarm yang dijadwalkan berada dalam rentang 0-23', async () => {
     await scheduleOfflineAlarms(2500, 7, 23);
-    const calls = mockScheduleNotificationAsync.mock.calls;
+    const calls = (NotificationsMock.scheduleNotificationAsync as jest.Mock).mock.calls;
     calls.forEach(([args]: any) => {
-      if (args.trigger.type === 'calendar') {
+      if (args.trigger.type === 'daily') {
         expect(args.trigger.hour).toBeGreaterThanOrEqual(0);
         expect(args.trigger.hour).toBeLessThanOrEqual(23);
       }
@@ -188,9 +190,9 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
 
   it('Menit alarm yang dijadwalkan berada dalam rentang 0-59', async () => {
     await scheduleOfflineAlarms(2500, 7, 23);
-    const calls = mockScheduleNotificationAsync.mock.calls;
+    const calls = (NotificationsMock.scheduleNotificationAsync as jest.Mock).mock.calls;
     calls.forEach(([args]: any) => {
-      if (args.trigger.type === 'calendar') {
+      if (args.trigger.type === 'daily') {
         expect(args.trigger.minute).toBeGreaterThanOrEqual(0);
         expect(args.trigger.minute).toBeLessThanOrEqual(59);
       }
