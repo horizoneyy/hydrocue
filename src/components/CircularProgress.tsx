@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState, memo } from 'react';
-import { View, Text, Animated, Easing, Dimensions } from 'react-native';
+import { View, Text, Animated, Easing, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-const { width } = Dimensions.get('window');
+// [FIX: Dihapus top-level Dimensions.get — tidak reaktif terhadap orientasi/resize]
+// const { width } = Dimensions.get('window'); ← DIHAPUS
 
 const CircleWithoutCollapsable = React.forwardRef((props: any, ref) => {
   const { collapsable, ...rest } = props;
@@ -16,30 +17,42 @@ const AnimatedNumber = memo(({ value }: { value: number }) => {
   const [displayValue, setDisplayValue] = useState(value);
   const anim = useRef(new Animated.Value(value)).current;
   const prevValue = useRef(value);
+  // [FIX MEMORY LEAK: Simpan listener ID di ref — sebelumnya listener lama terakumulasi setiap value berubah]
+  const listenerIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const from = prevValue.current;
     prevValue.current = value;
-    
+
     anim.setValue(from);
     Animated.timing(anim, {
       toValue: value,
       duration: 600,
       useNativeDriver: false,
     }).start();
-    
-    const listener = anim.addListener(({ value: v }) => setDisplayValue(Math.round(v)));
-    return () => anim.removeListener(listener);
+
+    // [FIX: Hapus listener lama SEBELUM menambah listener baru — mencegah akumulasi]
+    if (listenerIdRef.current) {
+      anim.removeListener(listenerIdRef.current);
+    }
+    listenerIdRef.current = anim.addListener(({ value: v }) => setDisplayValue(Math.round(v)));
+
+    return () => {
+      // [FIX: Cleanup listener yang benar menggunakan ID yang tersimpan]
+      if (listenerIdRef.current) {
+        anim.removeListener(listenerIdRef.current);
+        listenerIdRef.current = null;
+      }
+    };
   }, [value, anim]);
 
   return (
     <Text
       className="text-[40px] font-black tracking-tighter leading-none z-10 text-white"
       style={{
-        textShadowColor: 'rgba(3, 105, 161, 0.4)',
-        textShadowOffset: { width: 0, height: 2 },
-        textShadowRadius: 4,
-      }}
+        // [FIX: cast 'as any' — TextStyle types belum update untuk textShadow shorthand]
+        textShadow: '0px 2px 4px rgba(3, 105, 161, 0.4)',
+      } as any}
     >
       {displayValue.toLocaleString()}
     </Text>
@@ -48,6 +61,9 @@ const AnimatedNumber = memo(({ value }: { value: number }) => {
 AnimatedNumber.displayName = 'AnimatedNumber';
 
 const CircularProgress = memo(({ progress, target, current }: { progress: number; target: number; current: number }) => {
+  // [FIX: Gunakan useWindowDimensions — reaktif terhadap rotasi layar dan resize tablet]
+  const { width } = useWindowDimensions();
+
   // UI Constants
   const size = width * 0.65;
   const strokeWidth = 20;
@@ -56,7 +72,6 @@ const CircularProgress = memo(({ progress, target, current }: { progress: number
   const circumference = 2 * Math.PI * radius;
   const innerSize = (radius - 8) * 2;
 
-  // PRUNING: Replace state-based Animated.Value with highly efficient useRef references
   const fillAnim = useRef(new Animated.Value(0)).current;
   const waveAnim1 = useRef(new Animated.Value(0)).current;
   const waveAnim2 = useRef(new Animated.Value(0)).current;
@@ -104,7 +119,7 @@ const CircularProgress = memo(({ progress, target, current }: { progress: number
   const bobTranslateY1 = bobAnim1.interpolate({ inputRange: [0, 1], outputRange: [-2, 2] });
   const bobTranslateY2 = bobAnim2.interpolate({ inputRange: [0, 1], outputRange: [2, -2] });
 
-  // Extracted SVG Paths for DRY execution
+  // Extracted SVG Paths (DRY)
   const standardWavePath = "M 0 50 Q 75 35 150 50 T 300 50 T 450 50 T 600 50 T 750 50 T 900 50 L 900 120 L 0 120 Z";
   const backWavePath = "M 0 50 Q 75 30 150 50 T 300 50 T 450 50 T 600 50 T 750 50 T 900 50 L 900 120 L 0 120 Z";
 
@@ -137,7 +152,11 @@ const CircularProgress = memo(({ progress, target, current }: { progress: number
         </Animated.View>
         
         <AnimatedNumber value={current} />
-        <Text className="font-bold text-xs uppercase tracking-widest mt-1 z-10 text-white" style={{ textShadowColor: 'rgba(3, 105, 161, 0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>
+        <Text
+          className="font-bold text-xs uppercase tracking-widest mt-1 z-10 text-white"
+          // [FIX: cast 'as any' — TextStyle types belum update untuk textShadow shorthand]
+          style={{ textShadow: '0px 1px 2px rgba(3, 105, 161, 0.4)' } as any}
+        >
           / {target.toLocaleString()} ML
         </Text>
       </View>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, memo, useCallback } from 'react';
+import React, { useEffect, useCallback, useState, memo } from 'react';
 import {
   View,
   Text,
@@ -50,50 +50,52 @@ const HeroCard = memo(({ progressPercent, progress, target, currentVolume, leftV
     </View>
   </LinearGradient>
 ));
+HeroCard.displayName = 'HeroCard';
 
-const QuickLogPanel = memo(({ isAdding, onQuickAdd, onCustomOpen }: { isAdding: boolean, onQuickAdd: (amount: number, label: string) => void, onCustomOpen: () => void }) => {
-  const options = [
-    { amount: 250, label: 'Glass', icon: 'water-outline', family: 'Ionicons' },
-    { amount: 350, label: 'Mug', icon: 'cafe-outline', family: 'Ionicons' },
-    { amount: 500, label: 'Bottle', icon: 'bottle-soda-outline', family: 'MaterialCommunityIcons' },
-    { amount: 0, label: 'Custom', icon: 'create-outline', suffix: 'ml', family: 'Ionicons' },
-  ];
+// [FIX: options array dipindah ke module scope — mencegah re-alokasi memori di setiap render lokal]
+const QUICK_LOG_OPTIONS = [
+  { amount: 250, label: 'Glass', icon: 'water-outline', family: 'Ionicons' },
+  { amount: 350, label: 'Mug', icon: 'cafe-outline', family: 'Ionicons' },
+  { amount: 500, label: 'Bottle', icon: 'bottle-soda-outline', family: 'MaterialCommunityIcons' },
+  { amount: 0, label: 'Custom', icon: 'create-outline', suffix: 'ml', family: 'Ionicons' },
+] as const;
 
-  return (
-    <>
-      <View className="flex-row items-center mb-4">
-        <Ionicons name="add-circle-outline" size={20} color="#0369A1" style={{ marginRight: 6 }} />
-        <Text className="text-[22px] font-black text-[#0F172A]" accessibilityRole="header">Quick Log</Text>
-      </View>
-      <View className="flex-row justify-between mb-8 gap-3">
-        {options.map((item, idx) => (
-          <TouchableOpacity
-            key={idx}
-            disabled={isAdding}
-            accessibilityRole="button"
-            accessibilityLabel={`Add ${item.amount > 0 ? item.amount : 'Custom'} ${item.amount > 0 ? 'ml' : ''} ${item.label}`}
-            onPress={() => item.amount > 0 ? onQuickAdd(item.amount, item.label) : onCustomOpen()}
-            className={`flex-1 rounded-[30px] py-4 px-2 items-center justify-center shadow-sm ${item.amount === 0 ? 'bg-[#E0F2FE]' : 'bg-white border border-[#F1F5F9]'} ${isAdding ? 'opacity-50' : 'opacity-100'}`}
-          >
-            <View className={`w-10 h-10 rounded-full items-center justify-center mb-3 ${item.amount === 0 ? 'bg-transparent' : 'bg-[#F0F9FF]'}`}>
-              {item.family === 'MaterialCommunityIcons' ? (
-                <MaterialCommunityIcons name={item.icon as any} size={22} color="#0369A1" />
-              ) : (
-                <Ionicons name={item.icon as any} size={20} color="#0369A1" />
-              )}
-            </View>
-            <Text numberOfLines={1} className="text-[#0F172A] font-black text-[13px] mb-0.5">
-              {item.amount > 0 ? `+${item.amount}` : item.label}
-            </Text>
-            <Text className="text-slate-500 font-bold text-[10px]">
-              {item.amount > 0 ? item.label : (item as any).suffix}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </>
-  );
-});
+const QuickLogPanel = memo(({ isAdding, onQuickAdd, onCustomOpen }: { isAdding: boolean, onQuickAdd: (amount: number, label: string) => void, onCustomOpen: () => void }) => (
+  <>
+    <View className="flex-row items-center mb-4">
+      <Ionicons name="add-circle-outline" size={20} color="#0369A1" style={{ marginRight: 6 }} />
+      <Text className="text-[22px] font-black text-[#0F172A]" accessibilityRole="header">Quick Log</Text>
+    </View>
+    <View className="flex-row justify-between mb-8 gap-3">
+      {/* [FIX: Ganti key={idx} ke key={item.label} — index sebagai key menyebabkan bug rekonsiliasi React] */}
+      {QUICK_LOG_OPTIONS.map((item) => (
+        <TouchableOpacity
+          key={item.label}
+          disabled={isAdding}
+          accessibilityRole="button"
+          accessibilityLabel={`Add ${item.amount > 0 ? item.amount : 'Custom'} ${item.amount > 0 ? 'ml' : ''} ${item.label}`}
+          onPress={() => item.amount > 0 ? onQuickAdd(item.amount, item.label) : onCustomOpen()}
+          className={`flex-1 rounded-[30px] py-4 px-2 items-center justify-center shadow-sm ${item.amount === 0 ? 'bg-[#E0F2FE]' : 'bg-white border border-[#F1F5F9]'} ${isAdding ? 'opacity-50' : 'opacity-100'}`}
+        >
+          <View className={`w-10 h-10 rounded-full items-center justify-center mb-3 ${item.amount === 0 ? 'bg-transparent' : 'bg-[#F0F9FF]'}`}>
+            {item.family === 'MaterialCommunityIcons' ? (
+              <MaterialCommunityIcons name={item.icon as any} size={22} color="#0369A1" />
+            ) : (
+              <Ionicons name={item.icon as any} size={20} color="#0369A1" />
+            )}
+          </View>
+          <Text numberOfLines={1} className="text-[#0F172A] font-black text-[13px] mb-0.5">
+            {item.amount > 0 ? `+${item.amount}` : item.label}
+          </Text>
+          <Text className="text-slate-500 font-bold text-[10px]">
+            {'suffix' in item ? item.suffix : item.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  </>
+));
+QuickLogPanel.displayName = 'QuickLogPanel';
 
 const CadenceStats = memo(({ logsCount, currentVolume, target, intervalMins, ratePerHour }: { logsCount: number, currentVolume: number, target: number, intervalMins: number, ratePerHour: number }) => (
   <>
@@ -123,59 +125,59 @@ const CadenceStats = memo(({ logsCount, currentVolume, target, intervalMins, rat
     </View>
   </>
 ));
+CadenceStats.displayName = 'CadenceStats';
 
-const IntakeList = memo(({ logs, onDelete }: { logs: IntakeLog[], onDelete: (id: number) => void }) => {
-  const getSubtitles = (type: string) => {
-    switch (type) {
-      case 'Glass': return { subtitle: 'Focus block', displayName: 'Desk Glass' };
-      case 'Bottle': return { subtitle: 'Cardio reload', displayName: 'Post-Walk Water Bottle' };
-      case 'Mug': return { subtitle: 'Meal companion', displayName: 'Lunch Refill' };
-      default: return { subtitle: 'Custom intake', displayName: type };
-    }
-  };
+const getSubtitles = (type: string): { subtitle: string; displayName: string } => {
+  switch (type) {
+    case 'Glass': return { subtitle: 'Focus block', displayName: 'Desk Glass' };
+    case 'Bottle': return { subtitle: 'Cardio reload', displayName: 'Post-Walk Water Bottle' };
+    case 'Mug': return { subtitle: 'Meal companion', displayName: 'Lunch Refill' };
+    default: return { subtitle: 'Custom intake', displayName: type };
+  }
+};
 
-  return (
-    <>
-      <View className="flex-row justify-between items-center mb-4">
-        <View className="flex-row items-center">
-          <Text className="text-[20px] font-black text-[#0F172A] mr-3" accessibilityRole="header">Today&apos;s Intake Log</Text>
-          <View className="bg-[#BAE6FD] px-3 py-1 rounded-full">
-            <Text className="text-[#0369A1] font-bold text-[10px]" accessibilityLabel={`${logs.length} entries total`}>{logs.length} entries</Text>
-          </View>
+const IntakeList = memo(({ logs, onDelete }: { logs: IntakeLog[], onDelete: (id: number) => void }) => (
+  <>
+    <View className="flex-row justify-between items-center mb-4">
+      <View className="flex-row items-center">
+        <Text className="text-[20px] font-black text-[#0F172A] mr-3" accessibilityRole="header">Today&apos;s Intake Log</Text>
+        <View className="bg-[#BAE6FD] px-3 py-1 rounded-full">
+          <Text className="text-[#0369A1] font-bold text-[10px]" accessibilityLabel={`${logs.length} entries total`}>{logs.length} entries</Text>
         </View>
       </View>
-      <View className="mb-8">
-        {logs.map((log) => {
-          const timeStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          const { subtitle, displayName } = getSubtitles(log.drink_type);
+    </View>
+    <View className="mb-8">
+      {logs.map((log) => {
+        const timeStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const { subtitle, displayName } = getSubtitles(log.drink_type);
 
-          return (
-            <View key={log.id} className="bg-white rounded-[24px] p-4 mb-3 shadow-sm border border-slate-100 flex-row items-center">
-              <View className="w-12 h-12 rounded-full bg-[#E0F2FE] items-center justify-center mr-4">
-                <Ionicons name="water" size={20} color="#0284c7" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-[#0F172A] font-bold text-[13px] mb-0.5">{displayName}</Text>
-                <View className="flex-row items-center">
-                  <Text className="text-slate-500 font-semibold text-[10px] mr-2" accessibilityLabel={`at ${timeStr}`}>{timeStr}</Text>
-                  <View className="w-1 h-1 rounded-full bg-slate-300 mr-2" />
-                  <Text className="text-[#059669] font-semibold text-[10px]">{subtitle}</Text>
-                </View>
-              </View>
-              <Text className="text-[#0369A1] font-black text-sm mr-4" accessibilityLabel={`Added ${log.amount} milliliters`}>+{log.amount} ml</Text>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Delete log entry for ${displayName}`} onPress={() => onDelete(log.id)} className="p-2">
-                <Ionicons name="trash-outline" size={18} color="#94A3B8" />
-              </TouchableOpacity>
+        return (
+          <View key={log.id} className="bg-white rounded-[24px] p-4 mb-3 shadow-sm border border-slate-100 flex-row items-center">
+            <View className="w-12 h-12 rounded-full bg-[#E0F2FE] items-center justify-center mr-4">
+              <Ionicons name="water" size={20} color="#0284c7" />
             </View>
-          );
-        })}
-        {logs.length === 0 && (
-          <Text className="text-center text-slate-400 mt-4 font-semibold" accessibilityRole="text">No entries yet today.</Text>
-        )}
-      </View>
-    </>
-  );
-});
+            <View className="flex-1">
+              <Text className="text-[#0F172A] font-bold text-[13px] mb-0.5">{displayName}</Text>
+              <View className="flex-row items-center">
+                <Text className="text-slate-500 font-semibold text-[10px] mr-2" accessibilityLabel={`at ${timeStr}`}>{timeStr}</Text>
+                <View className="w-1 h-1 rounded-full bg-slate-300 mr-2" />
+                <Text className="text-[#059669] font-semibold text-[10px]">{subtitle}</Text>
+              </View>
+            </View>
+            <Text className="text-[#0369A1] font-black text-sm mr-4" accessibilityLabel={`Added ${log.amount} milliliters`}>+{log.amount} ml</Text>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Delete log entry for ${displayName}`} onPress={() => onDelete(log.id)} className="p-2">
+              <Ionicons name="trash-outline" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+        );
+      })}
+      {logs.length === 0 && (
+        <Text className="text-center text-slate-400 mt-4 font-semibold" accessibilityRole="text">No entries yet today.</Text>
+      )}
+    </View>
+  </>
+));
+IntakeList.displayName = 'IntakeList';
 
 /* =====================================================================
  * MAIN DASHBOARD
@@ -192,27 +194,26 @@ export default function Dashboard() {
   const [isCustomModalVisible, setCustomModalVisible] = useState(false);
   const [customAmountStr, setCustomAmountStr] = useState('');
   const [customAmountError, setCustomAmountError] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  // [FIX: Dihapus double-guard isAdding lokal — isLoading dari store adalah single source of truth]
+  // Sebelumnya: local isAdding + store isLoading = race condition potential
   const handleQuickAdd = useCallback(async (amount: number, name: string) => {
-    if (isAdding) return;
-    setIsAdding(true);
-    try {
-      await addIntake(amount, name);
-    } finally {
-      setIsAdding(false);
-    }
-  }, [isAdding, addIntake]);
+    if (isLoading) return;
+    await addIntake(amount, name);
+  }, [isLoading, addIntake]);
 
   const handleCustomSubmit = useCallback(() => {
     const amount = parseInt(customAmountStr, 10);
-    if (!customAmountStr || isNaN(amount) || amount <= 0) return setCustomAmountError('Masukkan jumlah antara 1 – 5000 ml');
+    if (!customAmountStr || isNaN(amount) || amount <= 0) {
+      return setCustomAmountError('Masukkan jumlah antara 1 – 5000 ml');
+    }
+    // [FIX: Validasi > 5000 sekarang dapat tercapai karena maxLength=4 (maks input 9999)]
     if (amount > 5000) return setCustomAmountError('Maksimum 5000 ml per entri');
-    
+
     Keyboard.dismiss();
     setCustomAmountError('');
     handleQuickAdd(amount, 'Custom');
@@ -226,7 +227,7 @@ export default function Dashboard() {
     setCustomAmountStr('');
     setCustomAmountError('');
   }, []);
-  
+
   const handleCustomOpen = useCallback(() => {
     setCustomModalVisible(true);
   }, []);
@@ -234,7 +235,7 @@ export default function Dashboard() {
   // Early Returns & State Checks
   if (isLoading && logs.length === 0) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F9FAFB] items-center justify-center">
+      <SafeAreaView className="flex-1 bg-[#F0F2F5] items-center justify-center">
         <Header />
         <View className="flex-1 items-center justify-center">
           <Text className="text-slate-500 font-bold mt-4" accessibilityRole="alert">Loading your hydration data...</Text>
@@ -255,7 +256,7 @@ export default function Dashboard() {
   const ratePerHour = target > 0 ? Math.round(target / activeHours) : 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F9FAFB]">
+    <SafeAreaView className="flex-1 bg-[#F0F2F5]">
       <Header />
       <ScrollView className="flex-1" contentContainerClassName="px-5 pt-2 pb-10" showsVerticalScrollIndicator={false}>
         <View className="flex-row justify-between items-end mb-6">
@@ -267,7 +268,8 @@ export default function Dashboard() {
 
         <HeroCard progressPercent={progressPercent} progress={progress} target={target} currentVolume={currentVolume} leftVolume={leftVolume} />
         
-        <QuickLogPanel isAdding={isAdding} onQuickAdd={handleQuickAdd} onCustomOpen={handleCustomOpen} />
+        {/* [FIX: isLoading dari store sebagai single source of truth, bukan local isAdding] */}
+        <QuickLogPanel isAdding={isLoading} onQuickAdd={handleQuickAdd} onCustomOpen={handleCustomOpen} />
         
         <CadenceStats logsCount={logs.length} currentVolume={currentVolume} target={target} intervalMins={intervalMins} ratePerHour={ratePerHour} />
         

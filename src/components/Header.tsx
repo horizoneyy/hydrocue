@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 const Header = memo(() => {
   return (
     <View 
-      className="flex-row justify-between items-center bg-transparent px-5 py-3 z-50"
+      className="flex-row justify-between items-center bg-white px-5 py-3 z-50"
       accessible={true}
       accessibilityRole="header"
       accessibilityLabel="HydroCue App Header"

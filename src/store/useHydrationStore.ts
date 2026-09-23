@@ -194,7 +194,10 @@ export const useHydrationStore = create<HydrationState>((set, get) => ({
       }
       
       set({ target });
-    } catch {}
+    } catch {
+      // [BUG FIX: Sebelumnya catch {} silent — user tidak tahu target gagal disimpan]
+      Alert.alert('Error', 'Gagal menyimpan target harian.');
+    }
   },
 
   updateUserProfile: async (profileUpdates: Partial<UserProfile>) => {

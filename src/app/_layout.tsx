@@ -1,23 +1,21 @@
 import '../global.css';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LogBox } from 'react-native';
+import { type ColorValue } from 'react-native';
 
-LogBox.ignoreLogs([
-  "ScrollView doesn't take rejection well - scrolls anyway",
-]);
 
-// Extracted render functions to prevent inline allocation on every frame/re-render
-const renderIndexIcon = ({ color, focused }: { color: any, focused: boolean }) => (
-  <Ionicons name={focused ? 'water' : 'water-outline'} size={24} color={color} />
+// [REFACTOR: Ekstrak icon render functions ke luar komponen — mencegah re-alokasi tiap render]
+// [FIX: Tipe color diperbaiki ke ColorValue — expo-router tabBarIcon mengoper OpaqueColorValue]
+const renderProfileIcon = ({ color, focused }: { color: ColorValue; focused: boolean }) => (
+  <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color as string} />
 );
 
-const renderProfileIcon = ({ color, focused }: { color: any, focused: boolean }) => (
-  <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+const renderIndexIcon = ({ color, focused }: { color: ColorValue; focused: boolean }) => (
+  <Ionicons name={focused ? 'water' : 'water-outline'} size={24} color={color as string} />
 );
 
-const renderSettingsIcon = ({ color, focused }: { color: any, focused: boolean }) => (
-  <Ionicons name={focused ? 'notifications' : 'notifications-outline'} size={24} color={color} />
+const renderSettingsIcon = ({ color, focused }: { color: ColorValue; focused: boolean }) => (
+  <Ionicons name={focused ? 'notifications' : 'notifications-outline'} size={24} color={color as string} />
 );
 
 export default function Layout() {
@@ -26,7 +24,7 @@ export default function Layout() {
       initialRouteName="index"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#0284c7', 
+        tabBarActiveTintColor: '#0284c7',
         tabBarInactiveTintColor: '#64748b',
         tabBarStyle: {
           backgroundColor: '#ffffff',
@@ -34,8 +32,9 @@ export default function Layout() {
           borderTopColor: '#f1f5f9',
           elevation: 0,
         },
-      }}>
-      
+      }}
+    >
+      {/* Urutan Tab: Profile (kiri) -> Today (tengah) -> Alerts (kanan) */}
       <Tabs.Screen
         name="profile"
         options={{
@@ -51,7 +50,7 @@ export default function Layout() {
           tabBarIcon: renderIndexIcon,
         }}
       />
-      
+
       <Tabs.Screen
         name="settings"
         options={{
