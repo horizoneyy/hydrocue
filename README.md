@@ -1,56 +1,21 @@
-# Welcome to your Expo app 👋
+# HydroCue 
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**A smarter way to hydrate.**
 
-## Get started
+HydroCue is a beautifully designed, offline-first personal hydration companion. It calculates your daily water intake target based on physiological metrics, monitors your progress, and intelligently schedules reminders—all without ever needing an internet connection.
 
-1. Install dependencies
+## Features
 
-   ```bash
-   npm install
-   ```
+*   **Dynamic Hydration Algorithm**: Calculates your precise daily water needs based on biological baseline (age, gender, height), body weight, and daily energy expenditure.
+*   **Offline-First Engine**: 100% of your data lives on your device using a lightweight SQLite database. No telemetry, no cloud sync, complete privacy.
+*   **Smart Cadence Scheduling**: HydroCue respects your quiet hours. Reminders are dynamically distributed throughout your waking hours and automatically suspended during bedtime to safeguard your recovery.
+*   **Fluid Interface**: Built with React Native and Expo, featuring a responsive, mobile-first design that looks stunning on any screen size.
+*   **Zero-Friction Logging**: Quickly add water intake with a single tap. The dashboard provides instant visual feedback on your progress.
 
-2. Start the app
+## Why HydroCue? 
 
-   ```bash
-   npx expo start
-   ```
+Most hydration apps are bloated with ads, require cloud accounts, or use generic "8 glasses a day" rules. HydroCue takes a clinical approach to hydration, tailoring targets to your unique physiology while respecting your battery and privacy through an intelligent offline notification engine.
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+*Note: This is an active project. The core reminder engine and dashboard are fully functional. Advanced analytics and monitoring features are currently in development.*
