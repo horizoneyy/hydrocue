@@ -96,6 +96,18 @@ export const useHydrationStore = create<HydrationState>((set, get) => ({
         userProfile: profile,
         isLoading: false,
       });
+
+      // Jadwalkan notifikasi harian secara otomatis saat aplikasi dibuka
+      import('../services/notifications').then(({ requestNotificationPermissions, scheduleOfflineAlarms }) => {
+        requestNotificationPermissions().then((granted) => {
+          if (granted) {
+            const wakeHour = parseInt(profile.wake_time.split(':')[0], 10) || 7;
+            const sleepHour = parseInt(profile.sleep_time.split(':')[0], 10) || 23;
+            const currentTarget = summary?.target_ml || user?.daily_target_ml || 2850;
+            scheduleOfflineAlarms(currentTarget, wakeHour, sleepHour);
+          }
+        });
+      });
     } catch {
       set({ isLoading: false });
     }

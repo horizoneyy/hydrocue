@@ -9,6 +9,7 @@
 
 import { scheduleOfflineAlarms } from './notifications';
 import { useHydrationStore } from '../store/useHydrationStore';
+import * as NotificationsMock from 'expo-notifications';
 
 // ============================================================
 // MOCK SETUP
@@ -19,12 +20,11 @@ jest.mock('react-native', () => ({
   Platform: { OS: 'android' },
 }));
 
-import * as NotificationsMock from 'expo-notifications';
-
 jest.mock('expo-notifications', () => {
   return {
     setNotificationHandler: jest.fn(),
     setNotificationChannelAsync: jest.fn().mockResolvedValue(undefined),
+    deleteNotificationChannelAsync: jest.fn().mockResolvedValue(undefined),
     cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
     scheduleNotificationAsync: jest.fn().mockResolvedValue('mock-notification-id'),
     getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
@@ -68,7 +68,7 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
   it('Memanggil setNotificationChannelAsync dengan AndroidImportance.MAX jika high_priority=true', async () => {
     await scheduleOfflineAlarms(2500, 7, 23);
     expect(NotificationsMock.setNotificationChannelAsync).toHaveBeenCalledWith(
-      'hydrocue_reminders',
+      'hydrocue_reminders_v2',
       expect.objectContaining({ importance: 5 }) // MAX = 5
     );
   });
@@ -76,7 +76,7 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
   it('Menyertakan vibrationPattern jika haptics_enabled=true', async () => {
     await scheduleOfflineAlarms(2500, 7, 23);
     expect(NotificationsMock.setNotificationChannelAsync).toHaveBeenCalledWith(
-      'hydrocue_reminders',
+      'hydrocue_reminders_v2',
       expect.objectContaining({ vibrationPattern: [0, 300, 200, 300] })
     );
   });
@@ -93,7 +93,7 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
     });
     await scheduleOfflineAlarms(2500, 7, 23);
     expect(NotificationsMock.setNotificationChannelAsync).toHaveBeenCalledWith(
-      'hydrocue_reminders',
+      'hydrocue_reminders_v2',
       expect.objectContaining({ vibrationPattern: undefined })
     );
   });

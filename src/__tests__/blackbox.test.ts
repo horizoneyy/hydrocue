@@ -72,7 +72,6 @@ describe('[BLACK-BOX] Fitur Next Ping Display', () => {
   });
 
   it('BB-08: Mode Fixed 60 menit → next ping sekitar 60 menit dari sekarang', () => {
-    const now = new Date();
     const result = calculateNextPing('07:00', '23:00', 2500, 500, 60);
     expect(result).not.toBeNull();
     // Tidak perlu cek angka tepat, cukup pastikan formatnya benar

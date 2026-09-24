@@ -30,24 +30,26 @@ if (Platform.OS !== 'web') {
 
 // ─── Setup Android Notification Channel ──────────────────────────────────────
 // Channel harus HIGH atau MAX agar notifikasi muncul di lockscreen
-async function setupNotificationChannel(
+export async function setupNotificationChannel(
   highPriority: boolean,
   sound: boolean,
   vibrate: boolean,
 ) {
   if (Platform.OS !== 'android' || !Notifications) return;
   try {
-    await Notifications.setNotificationChannelAsync('hydrocue_reminders', {
+    // [FIX: Android mengharuskan channel dihapus dulu agar update sound/vibrate/importance diterapkan]
+    await Notifications.deleteNotificationChannelAsync('hydrocue_reminders_v2');
+    await Notifications.setNotificationChannelAsync('hydrocue_reminders_v2', {
       name: 'Hydration Reminders',
       description: 'Pengingat minum air dari HydroCue',
       importance: highPriority
         ? Notifications.AndroidImportance.MAX   // muncul di lockscreen & heads-up
         : Notifications.AndroidImportance.HIGH, // HIGH tetap muncul di lockscreen
       enableVibrate: vibrate,
-      vibrationPattern: vibrate ? [0, 300, 200, 300] : undefined,
+      vibrationPattern: vibrate ? [0, 300, 200, 300] : undefined, // Pola getar tetesan air
       enableLights: true,
       lightColor: '#0284c7',
-      sound: sound ? 'default' : undefined,
+      sound: sound ? 'waterdrop.wav' : undefined,
       showBadge: true,
       // bypassDnd → hanya aktif jika high priority dipilih user
       bypassDnd: highPriority,
@@ -114,12 +116,11 @@ export async function scheduleOfflineAlarms(
 
     // KONTEN NOTIFIKASI — channelId harus cocok dengan channel yang dibuat di atas
     const makeContent = (index: number): NotificationsType.NotificationContentInput => ({
-      title: 'Waktunya Minum Air! 💧',
-      body: `Sudah minum ${index * 250} ml — teruskan! Target hari ini ${targetMl.toLocaleString()} ml.`,
-      sound: soundEnabled ? 'default' : undefined,
-      vibrate: hapticsEnabled ? [0, 300, 200, 300] : undefined,
+      title: 'hydrocue',
+      body: `Waktunya minum ${Math.round(targetMl / drinksNeeded)} ml air!`,
+      sound: soundEnabled ? 'waterdrop.wav' : undefined,
       // PENTING: channelId harus sama persis dengan yang didaftarkan
-      ...(Platform.OS === 'android' && { channelId: 'hydrocue_reminders' }),
+      ...(Platform.OS === 'android' && { channelId: 'hydrocue_reminders_v2' }),
       // Sticky agar tidak hilang sendiri
       sticky: false,
       autoDismiss: false,
@@ -134,11 +135,10 @@ export async function scheduleOfflineAlarms(
     if (isFixed && intervalMins < 15) {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '💧 HydroCue — Test Mode',
-          body: `Alarm berulang setiap ${intervalMins} menit.`,
-          sound: soundEnabled ? 'default' : undefined,
-          vibrate: hapticsEnabled ? [0, 300, 200, 300] : undefined,
-          ...(Platform.OS === 'android' && { channelId: 'hydrocue_reminders' }),
+          title: 'hydrocue',
+          body: `Waktunya minum ${Math.round(targetMl / drinksNeeded)} ml air!`,
+          sound: soundEnabled ? 'waterdrop.wav' : undefined,
+          ...(Platform.OS === 'android' && { channelId: 'hydrocue_reminders_v2' }),
           autoDismiss: false,
         },
         trigger: {

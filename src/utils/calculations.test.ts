@@ -120,11 +120,9 @@ describe('[WHITE-BOX] calculateNextPing()', () => {
   it('Interval Auto tidak pernah di bawah 30 menit (mencegah spam)', () => {
     // Volume sisa sangat sedikit, waktu aktif sangat sedikit → interval bisa sangat kecil
     // Tapi harus di-clamp ke minimal 30 menit
-    const now = new Date();
     const result = calculateNextPing('07:00', '23:00', 3000, 2990);
     if (result) {
       // Ping harusnya minimal 30 menit dari sekarang
-      const resultTime = new Date(now.getTime() + 30 * 60000);
       // Hanya verifikasi format, bukan angka tepat (karena waktu berjalan)
       expect(result).toMatch(/^(Today|Tomorrow), \d{2}:\d{2} [AP]M$/);
     }
