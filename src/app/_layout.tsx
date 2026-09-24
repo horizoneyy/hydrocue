@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
+
+const originalWarn = console.warn;
+console.warn = (...args) => {
+  const msg = args.join(' ');
+  if (msg.includes('useNativeDriver') || msg.includes('props.pointerEvents is deprecated')) {
+    return;
+  }
+  originalWarn(...args);
+};
 import '../global.css';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';

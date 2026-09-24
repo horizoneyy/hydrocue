@@ -10,7 +10,8 @@ export const HeroCard = memo(({ progressPercent, progress, target, currentVolume
     colors={['#F0F9FF', '#E0F2FE']}
     start={{ x: 0.5, y: 0 }}
     end={{ x: 0.5, y: 1 }}
-    className="rounded-[40px] overflow-hidden mb-8 shadow-sm border border-[#E0F2FE] relative px-5 py-6"
+    style={{ borderRadius: 40, overflow: 'hidden', paddingHorizontal: 24, paddingTop: 40, paddingBottom: 24 }}
+    className="mb-8 shadow-sm border border-[#E0F2FE] relative"
   >
     <View className="flex-row justify-between items-center z-10">
       <View className="bg-[#BAE6FD] px-4 py-2 rounded-full flex-row items-center">
