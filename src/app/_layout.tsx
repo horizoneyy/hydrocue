@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
+import '../global.css';
+import { Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { type ColorValue } from 'react-native';
+import CircularProgress from '../components/CircularProgress';
 
 const originalWarn = console.warn;
 console.warn = (...args) => {
@@ -9,11 +14,6 @@ console.warn = (...args) => {
   }
   originalWarn(...args);
 };
-import '../global.css';
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { type ColorValue } from 'react-native';
-import CircularProgress from '../components/CircularProgress';
 
 // [REFACTOR: Ekstrak icon render functions ke luar komponen — mencegah re-alokasi tiap render]
 // [FIX: Tipe color diperbaiki ke ColorValue — expo-router tabBarIcon mengoper OpaqueColorValue]

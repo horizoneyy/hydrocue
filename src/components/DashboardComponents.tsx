@@ -13,13 +13,7 @@ export const HeroCard = memo(({ progressPercent, progress, target, currentVolume
     style={{ borderRadius: 40, overflow: 'hidden', paddingHorizontal: 24, paddingTop: 40, paddingBottom: 24 }}
     className="mb-8 shadow-sm border border-[#E0F2FE] relative"
   >
-    <View className="flex-row justify-between items-center z-10">
-      <View className="bg-[#BAE6FD] px-4 py-2 rounded-full flex-row items-center">
-        <Ionicons name="flame-outline" size={14} color="#0369A1" style={{ marginRight: 6 }} />
-        <Text className="text-[#0369A1] font-bold text-xs" accessibilityLabel={`Goal status: ${progressPercent >= 100 ? 'Goal Met' : progressPercent >= 50 ? 'On Track' : 'Keep Going'}`}>
-          {progressPercent >= 100 ? 'Goal Met! 🎉' : progressPercent >= 50 ? 'On Track' : 'Keep Going'}
-        </Text>
-      </View>
+    <View className="flex-row justify-end items-center z-10">
       <View className="bg-[#0369A1] px-4 py-2 rounded-full shadow-sm">
         <Text className="text-white font-black text-xs" accessibilityLabel={`${progressPercent} percent completed`}>{progressPercent}%</Text>
       </View>
