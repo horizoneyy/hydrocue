@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, memo } from 'react';
-import { View, Text, Animated, Easing, useWindowDimensions } from 'react-native';
+import { View, Text, Animated, Easing, useWindowDimensions, Platform } from 'react-native';
 import Svg, { Path, Defs, ClipPath, G, Circle, LinearGradient, Stop, Ellipse } from 'react-native-svg';
 
 const GComponent = React.forwardRef((props: any, ref) => {
@@ -83,31 +83,31 @@ const CircularProgress = memo(({ progress, target, current, isLogo }: { progress
       toValue: Math.min(Math.max(progress, 0), 1.1),
       duration: 1500,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
 
     const animations = [
       Animated.loop(
         Animated.sequence([
-          Animated.timing(vesselAnim, { toValue: 1, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(vesselAnim, { toValue: 0, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(vesselAnim, { toValue: 1, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(vesselAnim, { toValue: 0, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
         ])
       ),
-      Animated.loop(Animated.timing(waveAnimFront, { toValue: 1, duration: 3500, easing: Easing.linear, useNativeDriver: true })),
-      Animated.loop(Animated.timing(waveAnimBack, { toValue: 1, duration: 4800, easing: Easing.linear, useNativeDriver: true })),
+      Animated.loop(Animated.timing(waveAnimFront, { toValue: 1, duration: 3500, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' })),
+      Animated.loop(Animated.timing(waveAnimBack, { toValue: 1, duration: 4800, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' })),
       
-      Animated.loop(Animated.timing(bubbleAnim1, { toValue: 1, duration: 3000, easing: Easing.linear, useNativeDriver: true })),
+      Animated.loop(Animated.timing(bubbleAnim1, { toValue: 1, duration: 3000, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' })),
       Animated.sequence([
         Animated.delay(1000),
-        Animated.loop(Animated.timing(bubbleAnim2, { toValue: 1, duration: 2600, easing: Easing.linear, useNativeDriver: true }))
+        Animated.loop(Animated.timing(bubbleAnim2, { toValue: 1, duration: 2600, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' }))
       ]),
       Animated.sequence([
         Animated.delay(1700),
-        Animated.loop(Animated.timing(bubbleAnim3, { toValue: 1, duration: 2300, easing: Easing.linear, useNativeDriver: true }))
+        Animated.loop(Animated.timing(bubbleAnim3, { toValue: 1, duration: 2300, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' }))
       ]),
       Animated.sequence([
         Animated.delay(500),
-        Animated.loop(Animated.timing(bubbleAnim4, { toValue: 1, duration: 3200, easing: Easing.linear, useNativeDriver: true }))
+        Animated.loop(Animated.timing(bubbleAnim4, { toValue: 1, duration: 3200, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' }))
       ])
     ];
 
