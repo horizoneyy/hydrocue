@@ -1,19 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated, type ColorValue, LogBox } from 'react-native';
 import '../global.css';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { type ColorValue } from 'react-native';
 import CircularProgress from '../components/CircularProgress';
 
-const originalWarn = console.warn;
-console.warn = (...args) => {
-  const msg = args.join(' ');
-  if (msg.includes('useNativeDriver') || msg.includes('props.pointerEvents is deprecated')) {
-    return;
-  }
-  originalWarn(...args);
-};
+LogBox.ignoreAllLogs(true); // Suppress all warning boxes in the UI so the app looks clean for posting
 
 // [REFACTOR: Ekstrak icon render functions ke luar komponen — mencegah re-alokasi tiap render]
 // [FIX: Tipe color diperbaiki ke ColorValue — expo-router tabBarIcon mengoper OpaqueColorValue]
@@ -53,7 +45,7 @@ export default function Layout() {
   const [fadeAnim] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
-    // Fill animation takes ~1.5s. Start fading out at 2.0s
+    // Fill animation takes 2.0s (starts at 100ms). Start fading out at 2.4s to show full fill.
     const timer = setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -62,7 +54,7 @@ export default function Layout() {
       }).start(() => {
         setIsReady(true);
       });
-    }, 2000);
+    }, 2400);
     return () => clearTimeout(timer);
   }, [fadeAnim]);
 

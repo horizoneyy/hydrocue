@@ -7,7 +7,7 @@
  * Cara jalankan: npx jest src/services/notifications.test.ts --verbose
  */
 
-import { scheduleOfflineAlarms } from './notifications';
+import { scheduleOfflineAlarms, requestNotificationPermissions } from './notifications';
 import { useHydrationStore } from '../store/useHydrationStore';
 import * as NotificationsMock from 'expo-notifications';
 
@@ -196,6 +196,66 @@ describe('[WHITE-BOX] scheduleOfflineAlarms()', () => {
         expect(args.trigger.minute).toBeGreaterThanOrEqual(0);
         expect(args.trigger.minute).toBeLessThanOrEqual(59);
       }
+    });
+  });
+});
+
+
+
+describe('[WHITE-BOX] requestNotificationPermissions()', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('Mengembalikan true jika existingStatus sudah granted', async () => {
+    (NotificationsMock.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'granted' });
+    const result = await requestNotificationPermissions();
+    expect(result).toBe(true);
+    expect(NotificationsMock.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('Meminta izin baru jika existingStatus belum granted dan mengembalikan hasilnya', async () => {
+    (NotificationsMock.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'undetermined' });
+    (NotificationsMock.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'granted' });
+    
+    const result = await requestNotificationPermissions();
+    
+    expect(NotificationsMock.requestPermissionsAsync).toHaveBeenCalled();
+    expect(result).toBe(true);
+  });
+
+  it('Mengembalikan false jika permintaan izin ditolak', async () => {
+    (NotificationsMock.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'undetermined' });
+    (NotificationsMock.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
+    
+    const result = await requestNotificationPermissions();
+    
+    expect(NotificationsMock.requestPermissionsAsync).toHaveBeenCalled();
+    expect(result).toBe(false);
+  });
+
+  it('Mengembalikan false jika terjadi error', async () => {
+    (NotificationsMock.getPermissionsAsync as jest.Mock).mockRejectedValueOnce(new Error('error'));
+    
+    const result = await requestNotificationPermissions();
+    
+    expect(result).toBe(false);
+  });
+});
+
+describe('[WHITE-BOX] setNotificationHandler config', () => {
+  it('Returns correct configuration from handleNotification', async () => {
+    // We need to re-require to trigger the module level code
+    jest.isolateModules(() => {
+      const NotificationsMock = /* eslint-disable-next-line @typescript-eslint/no-require-imports */ require('expo-notifications');
+      /* eslint-disable-next-line @typescript-eslint/no-require-imports */ require('./notifications');
+      
+      const handlerCall = NotificationsMock.setNotificationHandler.mock.calls[0][0];
+      expect(handlerCall).toBeDefined();
+      return handlerCall.handleNotification().then((res: any) => {
+        expect(res.shouldShowAlert).toBe(true);
+        expect(res.shouldShowBanner).toBe(true);
+      });
     });
   });
 });

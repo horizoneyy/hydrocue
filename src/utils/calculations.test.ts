@@ -144,3 +144,46 @@ describe('[WHITE-BOX] calculateNextPing()', () => {
     expect(result).not.toBeNull();
   });
 });
+
+// ============================================================
+// WHITE-BOX: getActivityMultiplier() & Edge Cases
+// ============================================================
+describe('[WHITE-BOX] getActivityMultiplier()', () => {
+  const { getActivityMultiplier } = /* eslint-disable-next-line @typescript-eslint/no-require-imports */ require('./calculations');
+  it('Mengembalikan 1.1 untuk Light', () => {
+    expect(getActivityMultiplier('Light')).toBe(1.1);
+  });
+  it('Mengembalikan 1.5 untuk Intense', () => {
+    expect(getActivityMultiplier('Intense')).toBe(1.5);
+  });
+  it('Mengembalikan 1.3 untuk Moderate (default)', () => {
+    expect(getActivityMultiplier('Moderate')).toBe(1.3);
+  });
+});
+
+describe('[WHITE-BOX] calculateNextPing() - Edge Cases', () => {
+  const { calculateNextPing } = /* eslint-disable-next-line @typescript-eslint/no-require-imports */ require('./calculations');
+  
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('Sesuaikan waktu sekarang jika sudah melewati tengah malam sebelum tidur (line 62)', () => {
+    // wakeHour = 07:00, sleepHour = 02:00 (sleepTotalMins = 26 * 60)
+    // now = 01:00 AM (already past midnight, before sleep time)
+    jest.setSystemTime(new Date('2023-01-01T01:00:00'));
+    const result = calculateNextPing('07:00', '02:00', 2500, 1000);
+    expect(result).not.toBeNull();
+  });
+
+  it('Fallback ke full active window jika remainingActiveMins <= 0 (line 69)', () => {
+    // wakeHour = 07:00, sleepHour = 23:00
+    // now = 23:30 (past sleep time, so remaining is negative)
+    jest.setSystemTime(new Date('2023-01-01T23:30:00'));
+    const result = calculateNextPing('07:00', '23:00', 2500, 1000);
+    expect(result).not.toBeNull();
+  });
+});

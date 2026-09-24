@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState, memo } from 'react';
-import { View, Text, Animated, Easing, useWindowDimensions, Platform } from 'react-native';
+import React, { useEffect, useRef, memo } from 'react';
+import { View, Animated, Easing, useWindowDimensions } from 'react-native';
 import Svg, { Path, Defs, ClipPath, G, Circle, LinearGradient, Stop, Ellipse } from 'react-native-svg';
 
 const GComponent = React.forwardRef((props: any, ref) => {
@@ -16,52 +16,7 @@ const CircleComponent = React.forwardRef((props: any, ref) => {
 CircleComponent.displayName = 'CircleComponent';
 const AnimatedCircle = Animated.createAnimatedComponent(CircleComponent);
 
-export const AnimatedNumber = memo(({ value, className, style }: { value: number, className?: string, style?: any }) => {
-  const [displayValue, setDisplayValue] = useState(value);
-  const anim = useRef(new Animated.Value(value)).current;
-  const prevValue = useRef(value);
-  const listenerIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    const from = prevValue.current;
-    prevValue.current = value;
-
-    anim.setValue(from);
-    Animated.timing(anim, {
-      toValue: value,
-      duration: 1500, // Match the liquid animation duration
-      useNativeDriver: false,
-    }).start();
-
-    if (listenerIdRef.current) {
-      anim.removeListener(listenerIdRef.current);
-    }
-    
-    let lastUpdate = Date.now();
-    listenerIdRef.current = anim.addListener(({ value: v }) => {
-      const now = Date.now();
-      const nextValue = Math.round(v);
-      if (now - lastUpdate >= 32 || nextValue === value) {
-        setDisplayValue(nextValue);
-        lastUpdate = now;
-      }
-    });
-
-    return () => {
-      if (listenerIdRef.current) {
-        anim.removeListener(listenerIdRef.current);
-        listenerIdRef.current = null;
-      }
-    };
-  }, [value, anim]);
-
-  return (
-    <Text className={className} style={style}>
-      {displayValue.toLocaleString()}
-    </Text>
-  );
-});
-AnimatedNumber.displayName = 'AnimatedNumber';
 
 const CircularProgress = memo(({ progress, target, current, isLogo }: { progress: number; target: number; current: number; isLogo?: boolean }) => {
   const { width } = useWindowDimensions();
@@ -81,39 +36,39 @@ const CircularProgress = memo(({ progress, target, current, isLogo }: { progress
     // Smooth Progress Timing
     Animated.timing(fillAnim, {
       toValue: Math.min(Math.max(progress, 0), 1.1),
-      duration: 1500,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: Platform.OS !== 'web',
+      duration: isLogo ? 2000 : 1500,
+      easing: isLogo ? Easing.inOut(Easing.quad) : Easing.out(Easing.cubic),
+      useNativeDriver: false,
     }).start();
 
     const animations = [
       Animated.loop(
         Animated.sequence([
-          Animated.timing(vesselAnim, { toValue: 1, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
-          Animated.timing(vesselAnim, { toValue: 0, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(vesselAnim, { toValue: 1, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+          Animated.timing(vesselAnim, { toValue: 0, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
         ])
       ),
-      Animated.loop(Animated.timing(waveAnimFront, { toValue: 1, duration: 3500, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' })),
-      Animated.loop(Animated.timing(waveAnimBack, { toValue: 1, duration: 4800, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' })),
+      Animated.loop(Animated.timing(waveAnimFront, { toValue: 1, duration: 3500, easing: Easing.linear, useNativeDriver: false })),
+      Animated.loop(Animated.timing(waveAnimBack, { toValue: 1, duration: 4800, easing: Easing.linear, useNativeDriver: false })),
       
-      Animated.loop(Animated.timing(bubbleAnim1, { toValue: 1, duration: 3000, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' })),
+      Animated.loop(Animated.timing(bubbleAnim1, { toValue: 1, duration: 3000, easing: Easing.linear, useNativeDriver: false })),
       Animated.sequence([
         Animated.delay(1000),
-        Animated.loop(Animated.timing(bubbleAnim2, { toValue: 1, duration: 2600, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' }))
+        Animated.loop(Animated.timing(bubbleAnim2, { toValue: 1, duration: 2600, easing: Easing.linear, useNativeDriver: false }))
       ]),
       Animated.sequence([
         Animated.delay(1700),
-        Animated.loop(Animated.timing(bubbleAnim3, { toValue: 1, duration: 2300, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' }))
+        Animated.loop(Animated.timing(bubbleAnim3, { toValue: 1, duration: 2300, easing: Easing.linear, useNativeDriver: false }))
       ]),
       Animated.sequence([
         Animated.delay(500),
-        Animated.loop(Animated.timing(bubbleAnim4, { toValue: 1, duration: 3200, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' }))
+        Animated.loop(Animated.timing(bubbleAnim4, { toValue: 1, duration: 3200, easing: Easing.linear, useNativeDriver: false }))
       ])
     ];
 
     animations.forEach(anim => anim.start());
     return () => animations.forEach(anim => anim.stop());
-  }, [progress, fillAnim, vesselAnim, waveAnimFront, waveAnimBack, bubbleAnim1, bubbleAnim2, bubbleAnim3, bubbleAnim4]);
+  }, [progress, isLogo, fillAnim, vesselAnim, waveAnimFront, waveAnimBack, bubbleAnim1, bubbleAnim2, bubbleAnim3, bubbleAnim4]);
 
   // Interpolations
   const translateY = fillAnim.interpolate({ inputRange: [0, 1, 1.1], outputRange: [80, -90, -95] });
